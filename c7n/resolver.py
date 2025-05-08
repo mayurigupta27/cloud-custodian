@@ -209,7 +209,9 @@ class ValuesFrom:
         from boto3.dynamodb.types import TypeDeserializer
         from botocore.paginate import Paginator
 
-        client = local_session(self.manager.session_factory).client('dynamodb')
+        # Use the region from the configuration if provided
+        region = self.data.get('region')
+        client = local_session(self.manager.session_factory).client('dynamodb', region_name=region)
 
         pager = Paginator(
             client.execute_statement,
@@ -228,7 +230,13 @@ class ValuesFrom:
                     results.append(list(record.values())[0])
                 else:
                     results.append(record)
+        
+        # Add debug logging to help diagnose issues
+        if not results:
+            log.debug("DynamoDB query returned no results: %s", self.data['query'])
+
         if not record_singleton or self.data.get('expr'):
+            log.debug("Processing DynamoDB results with expression: %s", self.data.get('expr'))
             return self._get_resource_values(results)
         return results
 
